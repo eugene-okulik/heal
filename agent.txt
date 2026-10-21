@@ -1,0 +1,111 @@
+import json
+import os
+
+import requests
+
+from openai import OpenAI
+
+
+TOKEN = os.environ.get("OPENROUTER_API_KEY", "")
+MODEL = "z-ai/glm-5.3-flash"
+FULL_URL = 'https://openrouter.ai/api/v1/chat/completions'
+URL = "https://openrouter.ai/api/v1"
+# URL = "https://api.mistral.ai/v1" - если мистраль
+# URL = "https://api.provod.ai/v1" - если provod
+
+client = OpenAI(base_url=URL, api_key=TOKEN)
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "read_file",
+            "description": "Read and return the full content of a file.",
+            "parameters": {
+                "type": "object",
+                "properties": {"path": {"type": "string", "description": "File path"}},
+                "required": ["path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_file",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "File path"},
+                    "content": {"type": "string", "description": "File content"}
+                },
+                "required": ["path", "content"]
+            }
+        }
+    }
+]
+
+def read_file(path: str) -> str:
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def write_file(path: str, content: str) -> str:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return f"Saved {len(content)} characters to {path}"
+
+
+def call_llm(messages):
+    return client.chat.completions.create(model=MODEL, messages=messages, tools=tools)
+
+context = []
+
+while True:
+    question = input("Your question: ")
+    context.append({'role': 'user', 'content': question})
+
+    # headers = {
+    #     'Authorization': f'Bearer {TOKEN}',
+    #     'Content-Type': 'application/json'
+    # }
+    #
+    # body = {
+    #     'model': MODEL,
+    #     'messages': [{'role': 'user', 'content': question}]
+    # }
+    #
+    # response = requests.post(
+    #     FULL_URL,
+    #     headers=headers,
+    #     json=body
+    # )
+    #
+    # answer = response.json()['choices'][0]['message']['content']
+    # print(answer)
+
+    response = call_llm(context)
+    print("=" * 20)
+    # print(response.json())
+    # print("+" * 20)
+    print(context)
+    print("=" * 20)
+    message = response.choices[0].message
+    answer = message.content
+    if answer:
+        context.append({'role': 'assistant', 'content': answer})
+    tool_call = message.tool_calls
+    if tool_call:
+        call = tool_call[0]
+        context.append({"role": "assistant", "content": f"Call function:{call.function.name} with args {call.function.arguments}"})
+        function_name = call.function.name
+        args = json.loads(call.function.arguments)
+        result = ''
+        if function_name == "read_file":
+            result = read_file(**args)
+        elif function_name == "write_file":
+            result = write_file(**args)
+        context.append({"role": "tool", 'content': result, "tool_call_id": call.id})
+    # https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create?site_locale=en#(resource)%20chat.completions%20%3E%20(model)%20chat_completion_tool_message_param%20%3E%20(schema)
+    print(answer)
+
+
