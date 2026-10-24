@@ -49,6 +49,18 @@ class BasePage:
 
     @heal
     def find_by_role(self, role, title, description=None) -> Locator:
-        locator =  self.page.get_by_role(role, name=title).first
+        locator = self.page.get_by_role(role, name=title).first
+        locator.wait_for(state="attached", timeout=3000)  # forces the lookup
+        return locator
+
+    @heal
+    def find_child(self, parent, selector, description=None) -> Locator:
+        locator = parent.page.locator(selector).first
+        locator.wait_for(state="attached", timeout=3000)  # forces the lookup
+        return locator
+
+    @heal
+    def find_child_by_role(self, parent, role, title, description=None) -> Locator:
+        locator = parent.page.get_by_role(role, name=title).first
         locator.wait_for(state="attached", timeout=3000)  # forces the lookup
         return locator

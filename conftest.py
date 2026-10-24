@@ -1,6 +1,7 @@
 import logging
 import pytest
 
+from pages.cart_page import CartPage
 from pages.product_page import ProductPage
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -9,3 +10,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 @pytest.fixture
 def product_page(page):
     return ProductPage(page)
+
+
+@pytest.fixture
+def cart_page(page):
+    return CartPage(page)
